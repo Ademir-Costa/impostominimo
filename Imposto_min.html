@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Simulador IR – Reforma 2026</title>
+
+<style>
+body {
+  background: linear-gradient(135deg,#08160d,#020704);
+  font-family: Arial, sans-serif;
+  color: #fff;
+}
+.card {
+  max-width: 820px;
+  margin: 30px auto;
+  padding: 30px;
+  background: rgba(63,161,16,.18);
+  backdrop-filter: blur(20px);
+  border-radius: 22px;
+  border: 1px solid rgba(63,161,16,.4);
+}
+button {
+  width: 100%;
+  padding: 12px;
+  margin: 15px 0;
+  background: #3FA110;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+label { font-size:.85rem; opacity:.85 }
+input {
+  width:100%; padding:10px; margin:6px 0 14px;
+  border-radius:8px; border:none;
+}
+.hidden { display:none }
+.resultado { margin-top:25px; line-height:1.9 }
+.positivo{color:#7CFF7C}
+.negativo{color:#FF6B6B}
+hr{border:0;height:1px;background:rgba(255,255,255,.2);margin:15px 0}
+</style>
+</head>
+
+<body>
+<div class="card">
+<h2>Simulador IR – Reforma 2026</h2>
+
+<button onclick="alternarModo()">Alternar modo de cálculo</button>
+
+<!-- ================= MODO MENSAL ================= -->
+<div id="mensal">
+<h3>Modo Mensal → Projeção Anual</h3>
+
+<label>Rendimentos tributáveis mensais</label>
+<input class="moeda calc" id="m_tributavel">
+
+<label>Dividendos mensais recebidos</label>
+<input class="moeda calc" id="m_dividendos">
+
+<label>Rendimentos isentos mensais</label>
+<input class="moeda calc" id="m_isentos">
+
+<h3>Impostos já pagos (mensais)</h3>
+<label>IRPF salário</label>
+<input class="moeda calc" id="m_irpf">
+
+<label>DARFs pagos</label>
+<input class="moeda calc" id="m_darf">
+
+<label>Compensações</label>
+<input class="moeda calc" id="m_comp">
+
+</div>
+
+<!-- ================= MODO ANUAL ================= -->
+<div id="anual" class="hidden">
+<h3>Modo Anual Direto</h3>
+
+<label>Rendimentos tributáveis anuais</label>
+<input class="moeda calc" id="a_tributavel">
+
+<label>Dividendos anuais</label>
+<input class="moeda calc" id="a_dividendos">
+
+<label>Rendimentos isentos anuais</label>
+<input class="moeda calc" id="a_isentos">
+
+<h3>Impostos já pagos (anuais)</h3>
+<label>IRPF + IRRF + DARFs</label>
+<input class="moeda calc" id="a_creditos">
+</div>
+
+<div class="resultado" id="resultado"></div>
+</div>
+
+<script>
+let modo = "mensal";
+
+function alternarModo(){
+  modo = modo === "mensal" ? "anual" : "mensal";
+  document.getElementById("mensal").classList.toggle("hidden");
+  document.getElementById("anual").classList.toggle("hidden");
+  calcular();
+}
+
+function f(v){return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+function l(v){return v?parseFloat(v.replace(/\D/g,''))/100:0}
+
+document.querySelectorAll(".moeda").forEach(i=>{
+  i.addEventListener("input",()=>{
+    const v=l(i.value); i.value=v?f(v):""; calcular();
+  })
+});
+
+function calcular(){
+  let tributavel=0, dividendos=0, isentos=0, creditos=0;
+
+  if(modo==="mensal"){
+    tributavel = l(m_tributavel.value)*12;
+    dividendos = l(m_dividendos.value)*12;
+    isentos = l(m_isentos.value)*12;
+
+    creditos =
+      l(m_irpf.value)*12 +
+      l(m_darf.value)*12 +
+      l(m_comp.value)*12;
+
+    // IRRF sobre dividendos
+    if(l(m_dividendos.value)>50000){
+      creditos += (l(m_dividendos.value)*0.10)*12;
+    }
+  } else {
+    tributavel = l(a_tributavel.value);
+    dividendos = l(a_dividendos.value);
+    isentos = l(a_isentos.value);
+    creditos = l(a_creditos.value);
+
+    if(dividendos/12>50000){
+      creditos += dividendos*0.10;
+    }
+  }
+
+  const base = Math.max(0, tributavel + dividendos - isentos);
+  const impostoMin = base>600000 ? base*0.10 : 0;
+  const impostoPagar = Math.max(0, impostoMin-creditos);
+
+  resultado.innerHTML = `
+    <h3>Resumo Fiscal</h3>
+    Base do imposto mínimo: ${f(base)}<br>
+    Imposto mínimo (10%): <span class="negativo">${f(impostoMin)}</span><br>
+    Créditos fiscais: <span class="positivo">${f(creditos)}</span><br>
+    <hr>
+    <strong>Imposto complementar a pagar:</strong>
+    <span class="${impostoPagar>0?'negativo':'positivo'}">
+      ${f(impostoPagar)}
+    </span>
+  `;
+}
+
+calcular();
+</script>
+</body>
+</html>
